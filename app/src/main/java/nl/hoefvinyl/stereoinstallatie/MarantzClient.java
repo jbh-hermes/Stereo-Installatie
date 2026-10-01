@@ -65,16 +65,16 @@ public final class MarantzClient {
     public static boolean sendAmplifierCommand(String ip, String action) {
         String command;
         switch (action) {
-            case "POWER_ON": command = "PWON"; break;
-            case "POWER_OFF": command = "PWSTANDBY"; break;
+            case "POWER_ON": command = "AMPON"; break;
+            case "POWER_OFF": command = "AMPOFF"; break;
             case "VOLUME_UP": command = "MVLONGUP"; break;
             case "VOLUME_DOWN": command = "MVLONGDOWN"; break;
-            case "MUTE_ON": command = "MUON"; break;
-            case "MUTE_OFF": command = "MUOFF"; break;
-            case "INPUT_CD": command = "SICD"; break;
-            case "INPUT_TUNER": command = "SITUNER"; break;
-            case "INPUT_AUX": command = "SIAUX1"; break;
-            case "INPUT_PHONO": command = "SIPHONO"; break;
+            case "MUTE_ON": command = "AMPMUTEON"; break;
+            case "MUTE_OFF": command = "AMPMUTEOFF"; break;
+            case "INPUT_CD": command = "AMPINPUTCD"; break;
+            case "INPUT_TUNER": command = "AMPINPUTTUNER"; break;
+            case "INPUT_AUX": command = "AMPINPUTAUX"; break;
+            case "INPUT_PHONO": command = "AMPINPUTPHONO"; break;
             default: return false;
         }
         return getOk(ip, "/goform/formiPhoneAppDirect.xml?" + command);
