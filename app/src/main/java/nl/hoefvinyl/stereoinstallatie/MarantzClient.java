@@ -80,31 +80,73 @@ public final class MarantzClient {
     }
 
     public static List<Favorite> fetchFavorites(String ip) {
-        String xml = postAppCommand(ip, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<tx>\n <cmd id=\"1\">GetSystemFavoriteList</cmd>\n</tx>");
         List<Favorite> out = new ArrayList<>();
-        if (xml == null) return out;
 
-        Pattern fav = Pattern.compile("<favorite(?:\\s[^>]*)?>(.*?)</favorite>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        Matcher m = fav.matcher(xml);
-        while (m.find()) {
-            String b = m.group(1);
-            String pos = firstNonBlank(tag(b,"position"), tag(b,"Position"), tag(b,"id"), tag(b,"value"));
-            String name = firstNonBlank(tag(b,"name"), tag(b,"Name"), tag(b,"title"), tag(b,"Title"));
-            if (!name.isEmpty()) out.add(new Favorite(normalizePosition(pos, out.size()+1), clean(name)));
+        String xml = postAppCommand(ip,
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+                "<tx>\n" +
+                " <cmd id=\"1\">GetSystemFavoriteList</cmd>\n" +
+                "</tx>");
+
+        parseFavoritesPayload(xml, out);
+
+        // Older NA-series units can also expose the list through the legacy FV query.
+        if (out.isEmpty()) {
+            String legacy = getText(ip, "/goform/formiPhoneAppDirect.xml?FV%20?");
+            parseFavoritesPayload(legacy, out);
         }
 
-        if (out.isEmpty()) {
-            Pattern item = Pattern.compile("<Item[^>]*>(.*?)</Item>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher im = item.matcher(xml);
-            int i=1;
-            while (im.find()) {
-                String b=im.group(1);
-                String pos=firstNonBlank(tag(b,"position"),tag(b,"value"),String.format("%02d",i));
-                String name=firstNonBlank(tag(b,"name"),tag(b,"title"),tag(b,"szLine"));
-                if(!name.isEmpty()) { out.add(new Favorite(normalizePosition(pos,i),clean(name))); i++; }
+        return out;
+    }
+
+    private static void parseFavoritesPayload(String payload, List<Favorite> out) {
+        if (payload == null || payload.trim().isEmpty()) return;
+
+        // Common AppCommand formats: <favorite>, <item>, <list>, or numbered value/name pairs.
+        Pattern block = Pattern.compile(
+                "<(?:favorite|item|list)(?:\\s[^>]*)?>(.*?)</(?:favorite|item|list)>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher bm = block.matcher(payload);
+        int fallback = 1;
+        while (bm.find()) {
+            String b = bm.group(1);
+            String pos = firstNonBlank(
+                    tag(b, "position"), tag(b, "Position"),
+                    tag(b, "id"), tag(b, "value"),
+                    tag(b, "Value"), tag(b, "index"), tag(b, "Index"));
+            String name = firstNonBlank(
+                    tag(b, "name"), tag(b, "Name"),
+                    tag(b, "title"), tag(b, "Title"),
+                    tag(b, "szLine"), tag(b, "text"), tag(b, "Text"));
+            if (!name.isEmpty()) {
+                out.add(new Favorite(normalizePosition(pos, fallback++), clean(name)));
             }
         }
-        return out;
+
+        if (!out.isEmpty()) return;
+
+        // Some firmware returns repeated <value>01</value><name>Station</name>.
+        Matcher pair = Pattern.compile(
+                "<value>(.*?)</value>\\s*<(?:name|title|text)>(.*?)</(?:name|title|text)>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(payload);
+        while (pair.find()) {
+            String pos = clean(pair.group(1));
+            String name = clean(pair.group(2));
+            if (!name.isEmpty()) out.add(new Favorite(normalizePosition(pos, fallback++), name));
+        }
+
+        if (!out.isEmpty()) return;
+
+        // Legacy FV status can be plain text. Accept lines like "FV 01 Station Name".
+        String[] lines = payload.split("\\r?\\n");
+        Pattern legacy = Pattern.compile("^\\s*(?:FV\\s*)?(\\d{1,2})[\\s:=,-]+(.+?)\\s*$", Pattern.CASE_INSENSITIVE);
+        for (String line : lines) {
+            Matcher lm = legacy.matcher(line);
+            if (lm.find()) {
+                String name = clean(lm.group(2));
+                if (!name.isEmpty()) out.add(new Favorite(normalizePosition(lm.group(1), fallback++), name));
+            }
+        }
     }
 
     public static boolean callFavorite(String ip, String position) {
@@ -130,7 +172,7 @@ public final class MarantzClient {
         HttpURLConnection c = null;
         try {
             c = open("http://" + ip + "/goform/AppCommand.xml", "POST", 1600, 2200);
-            c.setRequestProperty("Content-Type", "text/xml; charset=utf-8");
+            c.setRequestProperty("Content-Type", "application/json");
             c.setDoOutput(true);
             byte[] b=body.getBytes(StandardCharsets.UTF_8);
             c.setFixedLengthStreamingMode(b.length);
