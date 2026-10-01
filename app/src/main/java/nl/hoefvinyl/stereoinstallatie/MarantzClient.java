@@ -102,9 +102,46 @@ public final class MarantzClient {
     private static void parseFavoritesPayload(String payload, List<Favorite> out) {
         if (payload == null || payload.trim().isEmpty()) return;
 
-        // Common AppCommand formats: <favorite>, <item>, <list>, or numbered value/name pairs.
+        // Exact pattern used by the original app: each <favorite> contains repeated <value> fields.
+        Pattern favoriteBlock = Pattern.compile(
+                "<favorite(?:\\s[^>]*)?>(.*?)</favorite>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher fm = favoriteBlock.matcher(payload);
+        int favoriteFallback = 1;
+        Pattern valuePattern = Pattern.compile(
+                "<value[^>]*>(.*?)</value>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        while (fm.find()) {
+            String b = fm.group(1);
+            Matcher vm = valuePattern.matcher(b);
+            List<String> values = new ArrayList<>();
+            while (vm.find()) values.add(clean(vm.group(1)));
+
+            String pos = "";
+            String name = "";
+            for (String v : values) {
+                if (v == null || v.trim().isEmpty()) continue;
+                String trimmed = v.trim();
+                if (pos.isEmpty() && trimmed.matches("\\d{1,3}")) {
+                    pos = trimmed;
+                } else if (name.isEmpty() && !trimmed.matches("\\d{1,3}")) {
+                    name = trimmed;
+                }
+            }
+
+            // On some NA8005 firmware the first value is the position and the second is the station name.
+            if (pos.isEmpty() && values.size() >= 1) pos = values.get(0);
+            if (name.isEmpty() && values.size() >= 2) name = values.get(1);
+
+            if (!name.isEmpty()) {
+                out.add(new Favorite(normalizePosition(pos, favoriteFallback++), clean(name)));
+            }
+        }
+        if (!out.isEmpty()) return;
+
+        // Additional formats seen on related Marantz firmware.
         Pattern block = Pattern.compile(
-                "<(?:favorite|item|list)(?:\\s[^>]*)?>(.*?)</(?:favorite|item|list)>",
+                "<(?:item|list)(?:\\s[^>]*)?>(.*?)</(?:item|list)>",
                 Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
         Matcher bm = block.matcher(payload);
         int fallback = 1;
@@ -172,7 +209,7 @@ public final class MarantzClient {
         HttpURLConnection c = null;
         try {
             c = open("http://" + ip + "/goform/AppCommand.xml", "POST", 1600, 2200);
-            c.setRequestProperty("Content-Type", "application/json");
+            c.setRequestProperty("Content-Type", "text/xml; charset=utf-8");
             c.setDoOutput(true);
             byte[] b=body.getBytes(StandardCharsets.UTF_8);
             c.setFixedLengthStreamingMode(b.length);
