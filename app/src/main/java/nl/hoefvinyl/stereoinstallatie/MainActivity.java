@@ -80,7 +80,7 @@ public class MainActivity extends Activity {
         nav=new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setGravity(Gravity.CENTER);
-        nav.setPadding(dp(5),dp(7),dp(5),dp(8));
+        nav.setPadding(dp(4),dp(6),dp(4),dp(5));
         nav.setBackgroundColor(Color.rgb(36,37,41));
         root.addView(nav,new LinearLayout.LayoutParams(-1,dp(92)));
         rebuildNav();
@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
         nav.removeAllViews();
         nav.addView(navItem(0,"⌂","Start"),weight());
         nav.addView(navItem(1,"▰","Radio"),weight());
-        nav.addView(navItem(2,"♥","Favorieten"),weight());
+        nav.addView(navItem(2,"♥︎","Favorieten"),weight());
         nav.addView(navItem(3,"▣","Versterker"),weight());
         nav.addView(navItem(4,"▦","Bronnen"),weight());
     }
@@ -101,13 +101,13 @@ public class MainActivity extends Activity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER);
         box.setPadding(dp(4),dp(3),dp(4),dp(2));
-        TextView iv=txt(icon,29,p==page?WHITE:MUTED,Typeface.BOLD);
+        TextView iv=txt(icon,27,p==page?WHITE:MUTED,Typeface.NORMAL);
         iv.setGravity(Gravity.CENTER);
         if(p==page){
             iv.setBackground(round(ACTIVE,50,0,0));
-            iv.setPadding(dp(16),dp(6),dp(16),dp(6));
+            iv.setPadding(dp(15),dp(4),dp(15),dp(4));
         }
-        TextView tv=txt(label,13,p==page?WHITE:MUTED,Typeface.BOLD);
+        TextView tv=txt(label,12,p==page?WHITE:MUTED,Typeface.BOLD);
         tv.setGravity(Gravity.CENTER);
         box.addView(iv);
         box.addView(tv);
@@ -375,7 +375,7 @@ public class MainActivity extends Activity {
     private Button plainButton(String s,int size,int color){Button b=new Button(this);b.setText(s);b.setTextSize(size);b.setTextColor(color);b.setAllCaps(false);b.setGravity(Gravity.CENTER);b.setPadding(dp(8),0,dp(8),0);b.setBackgroundColor(Color.TRANSPARENT);return b;}
     private TextView txt(String s,int size,int color,int style){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.DEFAULT,style);return t;}
     private LinearLayout row(){LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setDividerPadding(dp(10));return r;}
-    private LinearLayout.LayoutParams weight(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-1,1f);p.setMargins(dp(5),0,dp(5),0);return p;}
+    private LinearLayout.LayoutParams weight(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(84),1f);p.setMargins(dp(5),0,dp(5),0);return p;}
     private GradientDrawable round(int color,int radius,int strokeColor,int strokeWidth){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(radius));if(strokeWidth>0)g.setStroke(dp(strokeWidth),strokeColor);return g;}
     private LinearLayout.LayoutParams lp(int w,int h,int l,int t,int r,int b){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(w,h);p.setMargins(dp(l),dp(t),dp(r),dp(b));return p;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
