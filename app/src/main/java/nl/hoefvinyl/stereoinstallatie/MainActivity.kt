@@ -6,8 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -107,7 +105,7 @@ class MainActivity : ComponentActivity() {
                 containerColor = Bg,
                 snackbarHost = { SnackbarHost(snackbar) },
                 bottomBar = {
-                    NavigationBar(modifier = Modifier.height(78.dp), containerColor = Color(0xFF242529), tonalElevation = 0.dp) {
+                    NavigationBar(containerColor = Color(0xFF242529), tonalElevation = 0.dp) {
                         val items = listOf(
                             Triple("Start", Icons.Filled.Home, 0),
                             Triple("Radio", Icons.Filled.Radio, 1),
@@ -119,8 +117,8 @@ class MainActivity : ComponentActivity() {
                             NavigationBarItem(
                                 selected = tab == idx,
                                 onClick = { tab = idx },
-                                icon = { Icon(icon, label, modifier = Modifier.size(26.dp)) },
-                                label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) },
+                                icon = { Icon(icon, label, modifier = Modifier.size(30.dp)) },
+                                label = { Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Text,
                                     selectedTextColor = Text,
@@ -198,7 +196,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Page(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Bg).verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 22.dp), content = content)
+    Column(Modifier.fillMaxSize().background(Bg).padding(horizontal = 32.dp, vertical = 24.dp), content = content)
 }
 
 @Composable
@@ -263,11 +261,11 @@ private fun QuickRow(left: QuickTileData, right: QuickTileData) {
 
 @Composable
 private fun QuickCard(item: QuickTileData, modifier: Modifier) {
-    Surface(modifier = modifier.height(140.dp).clickable { item.onClick() }, shape = RoundedCornerShape(28.dp), color = CardBg) {
+    Surface(modifier = modifier.height(162.dp).clickable { item.onClick() }, shape = RoundedCornerShape(28.dp), color = CardBg) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(item.icon, null, tint = Gold, modifier = Modifier.size(36.dp))
+            Icon(item.icon, null, tint = Gold, modifier = Modifier.size(42.dp))
             Spacer(Modifier.height(12.dp))
-            Text(item.label, color = Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(item.label, color = Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -370,16 +368,16 @@ private fun AmplifierScreen(onCommand:(String,String)->Unit, onAll:(Boolean)->Un
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                GoldButton("Dempen", Icons.Filled.VolumeOff, Modifier.weight(1f)) { onCommand("MUTE_ON","Geluid gedempt") }
-                GoldButton("Geluid aan", Icons.Filled.VolumeUp, Modifier.weight(1f)) { onCommand("MUTE_OFF","Geluid aan") }
+                GoldButton("Dempen", Icons.Filled.VolumeOff, Modifier.weight(1f)) { onCommand("MUTE_ON","Dempen-opdracht verzonden") }
+                GoldButton("Geluid aan", Icons.Filled.VolumeUp, Modifier.weight(1f)) { onCommand("MUTE_OFF","Geluid-aan-opdracht verzonden") }
             }
         }
         Spacer(Modifier.height(26.dp)); Text("Ingang kiezen", color = Text, fontSize = 28.sp); Spacer(Modifier.height(18.dp))
-        QuickRow(QuickTile(Icons.Filled.Album, "CD") { onCommand("INPUT_CD","CD gekozen") },
-            QuickTile(Icons.Filled.Radio, "Tuner") { onCommand("INPUT_TUNER","Tuner gekozen") })
+        QuickRow(QuickTile(Icons.Filled.Album, "CD") { onCommand("INPUT_CD","PM8003 ingang CD") },
+            QuickTile(Icons.Filled.Radio, "Tuner") { onCommand("INPUT_TUNER","PM8003 ingang Tuner") })
         Spacer(Modifier.height(12.dp))
-        QuickRow(QuickTile(Icons.Filled.Cable, "AUX") { onCommand("INPUT_AUX","AUX gekozen") },
-            QuickTile(Icons.Filled.Album, "Phono") { onCommand("INPUT_PHONO","Phono gekozen") })
+        QuickRow(QuickTile(Icons.Filled.Cable, "AUX") { onCommand("INPUT_AUX","PM8003 ingang AUX") },
+            QuickTile(Icons.Filled.Album, "Phono") { onCommand("INPUT_PHONO","PM8003 ingang Phono") })
     }
 }
 
@@ -407,10 +405,10 @@ private fun CardBlock(content:@Composable ColumnScope.()->Unit) {
 
 @Composable
 private fun GoldButton(text:String, icon:ImageVector, modifier:Modifier=Modifier, onClick:()->Unit) {
-    Button(onClick = onClick, modifier = modifier.height(82.dp), shape = RoundedCornerShape(30.dp),
+    Button(onClick = onClick, modifier = modifier.height(108.dp), shape = RoundedCornerShape(30.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Purple)) {
-        Icon(icon,null,modifier=Modifier.size(27.dp)); Spacer(Modifier.width(12.dp))
-        Text(text,fontSize=16.sp,fontWeight=FontWeight.Bold, maxLines=1)
+        Icon(icon,null,modifier=Modifier.size(31.dp)); Spacer(Modifier.width(12.dp))
+        Text(text,fontSize=18.sp,fontWeight=FontWeight.Bold)
     }
 }
 
@@ -418,7 +416,7 @@ private fun GoldButton(text:String, icon:ImageVector, modifier:Modifier=Modifier
 private fun OutlineAction(text:String, icon:ImageVector, modifier:Modifier=Modifier, onClick:()->Unit) {
     OutlinedButton(onClick=onClick, modifier=modifier.height(108.dp), shape=RoundedCornerShape(30.dp),
         colors=ButtonDefaults.outlinedButtonColors(contentColor=Gold)) {
-        Icon(icon,null,modifier=Modifier.size(26.dp)); Spacer(Modifier.width(10.dp))
+        Icon(icon,null,modifier=Modifier.size(30.dp)); Spacer(Modifier.width(10.dp))
         Text(text,fontSize=18.sp,fontWeight=FontWeight.Bold)
     }
 }
