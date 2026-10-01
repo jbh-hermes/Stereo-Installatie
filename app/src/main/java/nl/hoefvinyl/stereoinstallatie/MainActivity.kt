@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
                     when(tab) {
                         0 -> HomeScreen(nowPlaying, { resolve(true) }, { tab = 1 }, { tab = 2 }) { cmd, label ->
                             scope.launch {
-                                val ok = withContext(Dispatchers.IO) { MarantzClient.sendAmplifierCommand(ip, cmd) }
+                                val ok = withContext(Dispatchers.IO) { MarantzClient.selectSource(ip, cmd) }
                                 message(if (ok) "${label} gekozen" else "Bron kon niet worden gekozen")
                             }
                         }
@@ -160,7 +160,7 @@ class MainActivity : ComponentActivity() {
                         })
                         3 -> AmplifierScreen({ cmd, msg ->
                             scope.launch {
-                                val ok = withContext(Dispatchers.IO) { MarantzClient.selectSource(ip, cmd) }
+                                val ok = withContext(Dispatchers.IO) { MarantzClient.sendAmplifierCommand(ip, cmd) }
                                 message(if (ok) msg else "PM8003 reageerde niet")
                             }
                         }, { on ->
