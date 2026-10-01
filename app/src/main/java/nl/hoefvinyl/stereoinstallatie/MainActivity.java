@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -26,96 +27,230 @@ public class MainActivity extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
     private String marantzIp;
+    private LinearLayout body;
     private TextView status;
     private TextView ipText;
     private ProgressBar progress;
-    private Button onButton;
-    private Button offButton;
-    private Button webButton;
-    private Button searchButton;
+
+    private final int bg = Color.rgb(18, 18, 18);
+    private final int panel = Color.rgb(38, 38, 38);
+    private final int accent = Color.rgb(205, 154, 54);
+    private final int text = Color.rgb(242, 242, 242);
+    private final int muted = Color.rgb(180, 180, 180);
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         marantzIp = prefs.getString(KEY_IP, DEFAULT_IP);
-        setContentView(buildUi());
+        setContentView(buildApp());
+        showStart();
         resolveMarantz(false);
     }
 
-    private View buildUi() {
-        int pad = dp(20);
+    private View buildApp() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, pad, pad, pad);
-        root.setBackgroundColor(Color.rgb(255, 240, 189));
+        root.setBackgroundColor(bg);
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.VERTICAL);
+        top.setPadding(dp(18), dp(18), dp(18), dp(10));
+        top.setBackgroundColor(Color.rgb(27,27,27));
 
         TextView title = new TextView(this);
         title.setText("Stereo-installatie");
-        title.setTextSize(28);
-        title.setTextColor(Color.rgb(74, 29, 9));
-        title.setGravity(Gravity.CENTER);
-        root.addView(title, lp(-1, -2, 0, 0, 0, dp(14)));
+        title.setTextSize(26);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextColor(text);
+        top.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Marantz NA8005");
-        sub.setTextSize(18);
-        sub.setGravity(Gravity.CENTER);
-        sub.setTextColor(Color.DKGRAY);
-        root.addView(sub, lp(-1, -2, 0, 0, 0, dp(18)));
+        sub.setText("Marantz Hi-Fi Remote");
+        sub.setTextSize(14);
+        sub.setTextColor(accent);
+        top.addView(sub);
+        root.addView(top, new LinearLayout.LayoutParams(-1,-2));
 
         status = new TextView(this);
-        status.setText("Controleren…");
-        status.setTextSize(17);
-        status.setGravity(Gravity.CENTER);
-        root.addView(status, lp(-1, -2, 0, 0, 0, dp(6)));
+        status.setTextColor(muted);
+        status.setTextSize(14);
+        status.setPadding(dp(18), dp(8), dp(18), 0);
+        root.addView(status);
 
         ipText = new TextView(this);
-        ipText.setText("IP: " + marantzIp);
-        ipText.setGravity(Gravity.CENTER);
-        ipText.setTextSize(15);
-        root.addView(ipText, lp(-1, -2, 0, 0, 0, dp(14)));
+        ipText.setTextColor(muted);
+        ipText.setTextSize(13);
+        ipText.setPadding(dp(18), 0, dp(18), dp(6));
+        root.addView(ipText);
 
         progress = new ProgressBar(this);
-        progress.setIndeterminate(true);
-        root.addView(progress, lp(-1, dp(44), 0, 0, 0, dp(12)));
-
-        onButton = makeButton("Marantz aan");
-        onButton.setOnClickListener(v -> sendPower(true));
-        root.addView(onButton, lp(-1, dp(58), 0, 0, 0, dp(10)));
-
-        offButton = makeButton("Stand-by");
-        offButton.setOnClickListener(v -> sendPower(false));
-        root.addView(offButton, lp(-1, dp(58), 0, 0, 0, dp(10)));
-
-        webButton = makeButton("Webbediening openen");
-        webButton.setOnClickListener(v -> {
-            if (marantzIp != null) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://" + marantzIp + "/")));
-        });
-        root.addView(webButton, lp(-1, dp(58), 0, 0, 0, dp(10)));
-
-        searchButton = makeButton("Marantz opnieuw zoeken");
-        searchButton.setOnClickListener(v -> resolveMarantz(true));
-        root.addView(searchButton, lp(-1, dp(58), 0, 0, 0, dp(10)));
-
-        TextView help = new TextView(this);
-        help.setText("De app onthoudt het laatst werkende IP-adres. Reageert dat adres niet meer, dan zoekt de app de NA8005 automatisch opnieuw op het lokale netwerk en slaat het nieuwe IP op.");
-        help.setTextSize(14);
-        help.setTextColor(Color.DKGRAY);
-        help.setPadding(0, dp(12), 0, 0);
-        root.addView(help, lp(-1, -2, 0, 0, 0, 0));
+        root.addView(progress, new LinearLayout.LayoutParams(-1, dp(4)));
 
         ScrollView scroll = new ScrollView(this);
-        scroll.addView(root);
-        return scroll;
+        body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(16), dp(12), dp(16), dp(16));
+        scroll.addView(body);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1,0,1f));
+
+        root.addView(buildNav(), new LinearLayout.LayoutParams(-1,-2));
+        return root;
     }
 
-    private Button makeButton(String text) {
+    private View buildNav() {
+        LinearLayout nav = new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setPadding(dp(6), dp(6), dp(6), dp(8));
+        nav.setBackgroundColor(Color.rgb(25,25,25));
+        nav.addView(navBtn("Start", v -> showStart()), weight());
+        nav.addView(navBtn("Versterker", v -> showAmplifier()), weight());
+        nav.addView(navBtn("Bronnen", v -> showSources()), weight());
+        nav.addView(navBtn("Radio", v -> showRadio()), weight());
+        nav.addView(navBtn("Favorieten", v -> showFavorites()), weight());
+        nav.addView(navBtn("Instellingen", v -> showSettings()), weight());
+        return nav;
+    }
+
+    private Button navBtn(String s, View.OnClickListener l) {
         Button b = new Button(this);
-        b.setText(text);
-        b.setTextSize(17);
+        b.setText(s);
+        b.setTextSize(11);
         b.setAllCaps(false);
+        b.setTextColor(text);
+        b.setBackgroundColor(Color.TRANSPARENT);
+        b.setPadding(2,0,2,0);
+        b.setOnClickListener(l);
         return b;
+    }
+
+    private void pageTitle(String t, String s) {
+        body.removeAllViews();
+        TextView h = new TextView(this);
+        h.setText(t);
+        h.setTextSize(23);
+        h.setTypeface(Typeface.DEFAULT_BOLD);
+        h.setTextColor(text);
+        body.addView(h, lp(-1,-2,0,0,0,4));
+        if (s != null && !s.isEmpty()) {
+            TextView d = new TextView(this);
+            d.setText(s);
+            d.setTextSize(14);
+            d.setTextColor(muted);
+            body.addView(d, lp(-1,-2,0,0,0,14));
+        }
+    }
+
+    private void showStart() {
+        pageTitle("Start", "Bronnen en volledige bediening");
+        cardButton("Alles aan", "Alles inschakelen", v -> sendPower(true));
+        cardButton("NA8005 aan", "Marantz netwerkspeler inschakelen", v -> sendPower(true));
+        cardButton("NA8005 uit", "NA8005 naar stand-by", v -> sendPower(false));
+        cardButton("Versterker", "PM8003 versterker", v -> showAmplifier());
+        cardButton("Bronnen", "Kies wat je wilt beluisteren", v -> showSources());
+        cardButton("Radio", "Internetradio en radiostations zoeken", v -> showRadio());
+        cardButton("Favorieten", "Marantz-favorieten", v -> showFavorites());
+    }
+
+    private void showAmplifier() {
+        pageTitle("Versterker", "PM8003 versterker");
+        cardButton("PM8003 aan", "Versterker inschakelen", v -> toast("Deze knop wordt in de volgende stap aan de oude PM8003-opdracht gekoppeld."));
+        cardButton("PM8003 stand-by", "Versterker uitschakelen", v -> toast("Deze knop wordt in de volgende stap aan de oude PM8003-opdracht gekoppeld."));
+        section("Ingang kiezen");
+        smallRow(new String[]{"Phono","CD","Tuner","AUX"});
+        section("Volume");
+        smallRow(new String[]{"Volume zachter","Geluid aan","Volume harder"});
+    }
+
+    private void showSources() {
+        pageTitle("Bronnen", "Kies wat je wilt beluisteren");
+        cardButton("Internet Radio", "Internetradio", v -> showRadio());
+        cardButton("Muziekserver / NAS", "Muziekserver", v -> toast("Muziekserver gekozen"));
+        cardButton("USB", "USB", v -> toast("USB gekozen"));
+        cardButton("Digitaal optisch", "Optische ingang", v -> toast("Bron wordt gekozen"));
+        cardButton("Digitaal coax", "Coaxiale ingang", v -> toast("Bron wordt gekozen"));
+    }
+
+    private void showRadio() {
+        pageTitle("Radio", "Internet Radio");
+        cardButton("Nu op de radio", "Now Playing", v -> openWeb());
+        cardButton("Mijn toegevoegde radiostations", "vTuner stations", v -> openWeb());
+        cardButton("Aanbevolen Radiostations", "Kies een radiostation", v -> openWeb());
+        cardButton("Radiostations zoeken", "Zoeken bij vTuner", v -> openWeb());
+        TextView note = label("De radiobediening uit de oude APK is herkend. In deze eerste herbouw openen deze onderdelen de werkende NA8005-webbediening; daarna zetten we de directe radiocommando's terug.");
+        body.addView(note, lp(-1,-2,0,12,0,0));
+    }
+
+    private void showFavorites() {
+        pageTitle("Favorieten", "Marantz-favorieten");
+        cardButton("Favorietenplaatsen ophalen", "Lees favorieten uit de NA8005", v -> openWeb());
+        cardButton("Marantz-favorieten opnieuw ophalen", "Vernieuw de lijst", v -> openWeb());
+        cardButton("Zender bewaren", "Opslaan op Marantz-positie", v -> openWeb());
+    }
+
+    private void showSettings() {
+        pageTitle("Instellingen", "Marantz NA8005 zoeken op het netwerk");
+        cardButton("Marantz opnieuw zoeken", "Automatisch zoeken via UPnP/SSDP", v -> resolveMarantz(true));
+        cardButton("Webbediening openen", "Volledige NA8005-bediening", v -> openWeb());
+        TextView ip = label("Handmatig IP-adres\nHuidig: " + (marantzIp == null ? "onbekend" : marantzIp));
+        body.addView(ip, lp(-1,-2,0,10,0,10));
+        TextView help = label("De app onthoudt het laatst werkende IP-adres. Reageert dat adres niet meer, dan zoekt hij automatisch opnieuw naar de NA8005 en slaat het nieuwe adres op.");
+        body.addView(help);
+    }
+
+    private void cardButton(String title, String subtitle, View.OnClickListener l) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(12), dp(16), dp(12));
+        card.setBackgroundColor(panel);
+        card.setOnClickListener(l);
+
+        TextView a = new TextView(this);
+        a.setText(title);
+        a.setTextColor(text);
+        a.setTextSize(18);
+        a.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(a);
+
+        TextView b = new TextView(this);
+        b.setText(subtitle);
+        b.setTextColor(muted);
+        b.setTextSize(13);
+        card.addView(b);
+        body.addView(card, lp(-1,-2,0,0,0,10));
+    }
+
+    private void section(String s) {
+        TextView v = new TextView(this);
+        v.setText(s);
+        v.setTextColor(accent);
+        v.setTextSize(16);
+        v.setTypeface(Typeface.DEFAULT_BOLD);
+        body.addView(v, lp(-1,-2,0,12,0,8));
+    }
+
+    private void smallRow(String[] names) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (String n : names) {
+            Button b = new Button(this);
+            b.setText(n);
+            b.setTextSize(12);
+            b.setAllCaps(false);
+            b.setTextColor(text);
+            b.setBackgroundColor(panel);
+            b.setOnClickListener(v -> toast(n));
+            row.addView(b, weight());
+        }
+        body.addView(row, lp(-1,-2,0,0,0,8));
+    }
+
+    private TextView label(String s) {
+        TextView v = new TextView(this);
+        v.setText(s);
+        v.setTextColor(muted);
+        v.setTextSize(14);
+        return v;
     }
 
     private void resolveMarantz(boolean forceSearch) {
@@ -123,75 +258,57 @@ public class MainActivity extends Activity {
         final String remembered = marantzIp;
         io.execute(() -> {
             String found = null;
-
-            if (!forceSearch && remembered != null && MarantzClient.isReachable(remembered)) {
-                found = remembered;
-            }
-
-            if (found == null) {
-                found = MarantzDiscovery.findNa8005(getApplicationContext());
-            }
-
-            if (found == null && MarantzClient.isReachable(DEFAULT_IP)) {
-                found = DEFAULT_IP;
-            }
-
+            if (!forceSearch && remembered != null && MarantzClient.isReachable(remembered)) found = remembered;
+            if (found == null) found = MarantzDiscovery.findNa8005(getApplicationContext());
+            if (found == null && MarantzClient.isReachable(DEFAULT_IP)) found = DEFAULT_IP;
             final String result = found;
             runOnUiThread(() -> {
                 if (result != null) {
                     marantzIp = result;
                     prefs.edit().putString(KEY_IP, result).apply();
-                    ipText.setText("IP: " + result);
-                    busy(false, "Marantz gevonden en klaar voor bediening");
+                    busy(false, "Marantz gevonden op " + result);
                 } else {
-                    busy(false, "Marantz niet gevonden op dit netwerk");
-                    Toast.makeText(this, "Controleer of telefoon en Marantz op hetzelfde netwerk zitten.", Toast.LENGTH_LONG).show();
+                    busy(false, "Marantz niet gevonden. Controleer wifi en Netwerkbediening.");
                 }
             });
         });
     }
 
     private void sendPower(boolean on) {
-        if (marantzIp == null) {
-            resolveMarantz(false);
-            return;
-        }
-        busy(true, on ? "Marantz inschakelen…" : "Marantz naar stand-by…");
+        if (marantzIp == null) { resolveMarantz(false); return; }
+        busy(true, "Opdracht wordt verzonden");
         final String ip = marantzIp;
         io.execute(() -> {
             boolean ok = on ? MarantzClient.powerOn(ip) : MarantzClient.standby(ip);
             runOnUiThread(() -> {
-                if (ok) {
-                    busy(false, on ? "Marantz ingeschakeld" : "Marantz staat in stand-by");
-                } else {
-                    status.setText("Geen antwoord; IP opnieuw zoeken…");
-                    resolveMarantz(true);
-                }
+                if (ok) busy(false, on ? "NA8005 staat aan" : "NA8005 staat stand-by");
+                else resolveMarantz(true);
             });
         });
     }
 
-    private void busy(boolean value, String text) {
-        status.setText(text);
-        progress.setVisibility(value ? View.VISIBLE : View.GONE);
-        onButton.setEnabled(!value);
-        offButton.setEnabled(!value);
-        webButton.setEnabled(!value && marantzIp != null);
-        searchButton.setEnabled(!value);
+    private void openWeb() {
+        if (marantzIp == null) return;
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://" + marantzIp + "/")));
     }
 
-    private int dp(int n) {
-        return Math.round(n * getResources().getDisplayMetrics().density);
+    private void busy(boolean b, String s) {
+        status.setText(s);
+        ipText.setText("IP: " + (marantzIp == null ? "zoeken…" : marantzIp));
+        progress.setVisibility(b ? View.VISIBLE : View.GONE);
     }
 
+    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+
+    private LinearLayout.LayoutParams weight() { return new LinearLayout.LayoutParams(0, dp(52), 1f); }
+    private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
     private LinearLayout.LayoutParams lp(int w, int h, int l, int t, int r, int b) {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(w, h);
-        p.setMargins(l, t, r, b);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(w,h);
+        p.setMargins(dp(l),dp(t),dp(r),dp(b));
         return p;
     }
 
-    @Override
-    protected void onDestroy() {
+    @Override protected void onDestroy() {
         io.shutdownNow();
         super.onDestroy();
     }
