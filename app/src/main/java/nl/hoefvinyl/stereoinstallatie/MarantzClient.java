@@ -81,114 +81,78 @@ public final class MarantzClient {
 
     public static List<Favorite> fetchFavorites(String ip) {
         List<Favorite> out = new ArrayList<>();
-
         String xml = postAppCommand(ip,
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<tx>\n" +
                 " <cmd id=\"1\">GetSystemFavoriteList</cmd>\n" +
                 "</tx>");
+        if (xml == null) return out;
 
-        parseFavoritesPayload(xml, out);
+        String normalized = xml.replace("\uFFFD\uFFFD", "").replace("\uFEFF", "");
+        Pattern favPattern = Pattern.compile(
+                "<favorite(?:\\s[^>]*)?>(.*?)</favorite>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher fm = favPattern.matcher(normalized);
+        while (fm.find()) {
+            String block = fm.group(1);
+            String no = valueTag(block, "No");
+            String stripped = no == null ? "" : no.replaceFirst("^0+", "");
+            if (stripped.isEmpty()) stripped = "0";
+            int position;
+            try { position = Integer.parseInt(stripped); }
+            catch (Exception ex) { continue; }
 
-        // Older NA-series units can also expose the list through the legacy FV query.
-        if (out.isEmpty()) {
-            String legacy = getText(ip, "/goform/formiPhoneAppDirect.xml?FV%20?");
-            parseFavoritesPayload(legacy, out);
+            String name = valueTag(block, "ItemName");
+            String functionName = valueTag(block, "FuncName");
+            if (name == null || name.trim().isEmpty()) name = functionName;
+            if (name == null) name = "";
+            name = clean(name);
+            if (!name.trim().isEmpty()) {
+                out.add(new Favorite(String.format("%02d", position), name));
+            }
         }
-
+        out.sort((a,b) -> {
+            try { return Integer.compare(Integer.parseInt(a.position), Integer.parseInt(b.position)); }
+            catch (Exception ex) { return a.position.compareTo(b.position); }
+        });
         return out;
     }
 
-    private static void parseFavoritesPayload(String payload, List<Favorite> out) {
-        if (payload == null || payload.trim().isEmpty()) return;
-
-        // Exact pattern used by the original app: each <favorite> contains repeated <value> fields.
-        Pattern favoriteBlock = Pattern.compile(
-                "<favorite(?:\\s[^>]*)?>(.*?)</favorite>",
+    private static String valueTag(String xml, String tag) {
+        if (xml == null) return "";
+        Pattern p = Pattern.compile(
+                "<" + Pattern.quote(tag) + "(?:\\s[^>]*)?>(.*?)</" + Pattern.quote(tag) + ">",
                 Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        Matcher fm = favoriteBlock.matcher(payload);
-        int favoriteFallback = 1;
-        Pattern valuePattern = Pattern.compile(
-                "<value[^>]*>(.*?)</value>",
-                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        while (fm.find()) {
-            String b = fm.group(1);
-            Matcher vm = valuePattern.matcher(b);
-            List<String> values = new ArrayList<>();
-            while (vm.find()) values.add(clean(vm.group(1)));
-
-            String pos = "";
-            String name = "";
-            for (String v : values) {
-                if (v == null || v.trim().isEmpty()) continue;
-                String trimmed = v.trim();
-                if (pos.isEmpty() && trimmed.matches("\\d{1,3}")) {
-                    pos = trimmed;
-                } else if (name.isEmpty() && !trimmed.matches("\\d{1,3}")) {
-                    name = trimmed;
-                }
-            }
-
-            // On some NA8005 firmware the first value is the position and the second is the station name.
-            if (pos.isEmpty() && values.size() >= 1) pos = values.get(0);
-            if (name.isEmpty() && values.size() >= 2) name = values.get(1);
-
-            if (!name.isEmpty()) {
-                out.add(new Favorite(normalizePosition(pos, favoriteFallback++), clean(name)));
-            }
-        }
-        if (!out.isEmpty()) return;
-
-        // Additional formats seen on related Marantz firmware.
-        Pattern block = Pattern.compile(
-                "<(?:item|list)(?:\\s[^>]*)?>(.*?)</(?:item|list)>",
-                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-        Matcher bm = block.matcher(payload);
-        int fallback = 1;
-        while (bm.find()) {
-            String b = bm.group(1);
-            String pos = firstNonBlank(
-                    tag(b, "position"), tag(b, "Position"),
-                    tag(b, "id"), tag(b, "value"),
-                    tag(b, "Value"), tag(b, "index"), tag(b, "Index"));
-            String name = firstNonBlank(
-                    tag(b, "name"), tag(b, "Name"),
-                    tag(b, "title"), tag(b, "Title"),
-                    tag(b, "szLine"), tag(b, "text"), tag(b, "Text"));
-            if (!name.isEmpty()) {
-                out.add(new Favorite(normalizePosition(pos, fallback++), clean(name)));
-            }
-        }
-
-        if (!out.isEmpty()) return;
-
-        // Some firmware returns repeated <value>01</value><name>Station</name>.
-        Matcher pair = Pattern.compile(
-                "<value>(.*?)</value>\\s*<(?:name|title|text)>(.*?)</(?:name|title|text)>",
-                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(payload);
-        while (pair.find()) {
-            String pos = clean(pair.group(1));
-            String name = clean(pair.group(2));
-            if (!name.isEmpty()) out.add(new Favorite(normalizePosition(pos, fallback++), name));
-        }
-
-        if (!out.isEmpty()) return;
-
-        // Legacy FV status can be plain text. Accept lines like "FV 01 Station Name".
-        String[] lines = payload.split("\\r?\\n");
-        Pattern legacy = Pattern.compile("^\\s*(?:FV\\s*)?(\\d{1,2})[\\s:=,-]+(.+?)\\s*$", Pattern.CASE_INSENSITIVE);
-        for (String line : lines) {
-            Matcher lm = legacy.matcher(line);
-            if (lm.find()) {
-                String name = clean(lm.group(2));
-                if (!name.isEmpty()) out.add(new Favorite(normalizePosition(lm.group(1), fallback++), name));
-            }
-        }
+        Matcher m = p.matcher(xml);
+        if (!m.find()) return "";
+        return clean(m.group(1));
     }
 
     public static boolean callFavorite(String ip, String position) {
-        String p = position == null ? "" : position.trim();
-        return getOk(ip, "/goform/formiPhoneAppFavorite_Call.xml?" + url(p));
+        java.net.Socket socket = null;
+        try {
+            int p;
+            try { p = Integer.parseInt(position.replaceAll("[^0-9]", "")); }
+            catch (Exception ex) { p = 0; }
+            String pos = String.format("%02d", p);
+            socket = new java.net.Socket(ip, 80);
+            socket.setSoTimeout(2500);
+            String request =
+                    "GET /goform/formiPhoneAppFavorite_Call.xml?" + pos + " HTTP/1.1\r\n" +
+                    "Content-Length: 0\r\n" +
+                    "HOST: " + ip + "\r\n" +
+                    "User-Agent: CyberGarage-HTTP/1.1 DLNADOC/1.50\r\n" +
+                    "\r\n";
+            java.io.OutputStream os = socket.getOutputStream();
+            os.write(request.getBytes(StandardCharsets.UTF_8));
+            os.flush();
+            String response = readAll(socket.getInputStream());
+            return response.startsWith("HTTP/1.0 200") || response.startsWith("HTTP/1.1 200");
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (socket != null) try { socket.close(); } catch (Exception ignored) {}
+        }
     }
 
     public static boolean deleteFavorite(String ip, String position) {
@@ -209,7 +173,10 @@ public final class MarantzClient {
         HttpURLConnection c = null;
         try {
             c = open("http://" + ip + "/goform/AppCommand.xml", "POST", 1600, 2200);
-            c.setRequestProperty("Content-Type", "text/xml; charset=utf-8");
+            c.setRequestProperty("Content-Type", "text/xml; charset=\"utf-8\"");
+            c.setRequestProperty("User-Agent", "CyberGarage-HTTP/1.1 DLNADOC/1.50");
+            c.setRequestProperty("Accept-Encoding", "identity");
+            c.setRequestProperty("Connection", "close");
             c.setDoOutput(true);
             byte[] b=body.getBytes(StandardCharsets.UTF_8);
             c.setFixedLengthStreamingMode(b.length);
