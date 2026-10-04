@@ -1,6 +1,8 @@
 package nl.hoefvinyl.stereoinstallatie.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -74,7 +76,10 @@ fun StereoInstallatieApp() {
 @Composable
 private fun Page(title:String, content:@Composable ColumnScope.()->Unit) {
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 28.dp, end = 28.dp, top = 24.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(title, color = PrimaryText, fontSize = 30.sp, fontWeight = FontWeight.Normal)
